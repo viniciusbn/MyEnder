@@ -425,7 +425,10 @@ bool pause_print(const_float_t retract, const xyz_pos_t &park_point, const bool 
 
   print_job_timer.pause();
 
-  // Save current position
+  // Save the true current position only after queued moves are complete.
+  // If captured too early, a buffered XY move can still be in flight and the
+  // resume point drifts during the filament change/restart cycle.
+  planner.synchronize();
   resume_position = current_position;
 
   // Will the nozzle be parking?
@@ -436,9 +439,6 @@ bool pause_print(const_float_t retract, const xyz_pos_t &park_point, const bool 
     const float park_raise = do_park ? nozzle.park_mode_0_height(park_point.z) - current_position.z : POWER_LOSS_ZRAISE;
     if (was_sd_printing && recovery.enabled) recovery.save(true, park_raise, do_park);
   #endif
-
-  // Wait for buffered blocks to complete
-  planner.synchronize();
 
   #if ALL(ADVANCED_PAUSE_FANS_PAUSE, HAS_FAN)
     thermalManager.set_fans_paused(true);
